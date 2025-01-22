@@ -39,7 +39,7 @@ else:
     client = OpenAI(api_key=st.session_state.api_key)
 
     # Tytuł aplikacji
-    st.header("Porozmawiajmy!")
+    st.title("Porozmawiajmy!")
     st.subheader("Menu pozwala wybrać osobę z którą chcesz porozmawiać")
 
     # Panel boczny do wyboru postaci
