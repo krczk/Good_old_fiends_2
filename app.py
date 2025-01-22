@@ -39,17 +39,18 @@ else:
     client = OpenAI(api_key=st.session_state.api_key)
 
     # Tytuł aplikacji
-    st.title("Good Old Friends")
+    st.header("Porozmawiajmy!")
+    st.subheader("Menu pozwala wybrać osobę z którą chcesz porozmawiać")
 
     # Panel boczny do wyboru postaci
-    st.sidebar.header("Wybierz postać")
-    selected_role = st.sidebar.selectbox("Postać", list(roles.keys()), index=0)
-    if st.sidebar.button("Zmień postać"):
+    st.sidebar.header("Wybierz osobę do rozmowy")
+    selected_role = st.sidebar.selectbox("Osoby do wyboru:", list(roles.keys()), index=0)
+    if st.sidebar.button("Wybieram"):
         set_role(selected_role)
-        st.success(f"Rozpoczęto rozmowę z postacią: {selected_role}")
+        st.success(f"Rozpoczęto rozmowę z: {selected_role}")
 
     # Wyświetlanie historii rozmowy bez wiadomości systemowej
-    st.subheader("Historia rozmowy")
+    st.text("Historia rozmowy:")
     for message in st.session_state.conversation_history:
         # Pomiń wyświetlanie wiadomości systemowej
         if message["role"] == "system":
