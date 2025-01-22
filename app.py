@@ -26,14 +26,15 @@ def set_role(role):
 
 # Strona wprowadzania klucza API
 if not st.session_state.api_key:
-    st.title("🔑 Wprowadź klucz API OpenAI")
-    api_key_input = st.text_input("OpenAI API Key", type="password")
-    if st.button("Zatwierdź klucz"):
+    st.title("💬 Dobry znajomy")
+    st.subheader("Zaloguj się i porozmawiajmy")
+    api_key_input = st.text_input("Poniżej wprowadź otrzymane hasło", type="password", placeholder="Wpisz hasło...")
+    if st.button("Zatwierdź"):
         if api_key_input:
             st.session_state.api_key = api_key_input
-            st.success("Klucz API został zapisany! Możesz rozpocząć rozmowę.")
+            st.success("Hasło prawidłowe! Możesz rozpocząć rozmowę.")
         else:
-            st.error("Proszę podać klucz API.")
+            st.error("Podaj poprawne hasło")
 else:
     # Inicjalizacja klienta OpenAI
     client = OpenAI(api_key=st.session_state.api_key)
