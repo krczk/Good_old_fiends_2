@@ -1,37 +1,39 @@
 import streamlit as st
 from openai import OpenAI
-from dotenv import load_dotenv
-import os
 
-# Wczytanie zmiennych środowiskowych z pliku .env
-load_dotenv()
+# Zdefiniowanie promptów dla postaci
+roles = {
+    "Lena": "Wcielasz się w rolę tej osoby. Opowiadasz historie, jak minął Ci dzień, oraz wchodzisz w interakcje z użytkownikiem. Jesteś miły, towarzyski i przyjacielski, czasem zabawny: Lena Nowicka, 34 lata, etnografka i fotografka.",
+    "Jakub": "Wcielasz się w rolę tej osoby. Opowiadasz historie, jak minął Ci dzień, oraz wchodzisz w interakcje z użytkownikiem. Jesteś miły, towarzyski i przyjacielski, czasem zabawny: Jakub Wiśniewski, 28 lat, programista.",
+    "Anna": "Wcielasz się w rolę tej osoby. Opowiadasz historie, jak minął Ci dzień, oraz wchodzisz w interakcje z użytkownikiem. Jesteś miły, towarzyski i przyjacielski, czasem zabawny: Anna Kowalska, 42 lata, nauczycielka."
+}
 
-# Pobranie klucza API z pliku .env lub wpisanie ręcznie
-api_key = os.getenv("key") or st.text_input("OpenAI API Key", type="password")
+# Zainicjalizowanie historii rozmowy w stanie sesji
+if "conversation_history" not in st.session_state:
+    st.session_state.conversation_history = []
+if "current_role" not in st.session_state:
+    st.session_state.current_role = None
+if "api_key" not in st.session_state:
+    st.session_state.api_key = None
 
-if not api_key:
-    st.info("Proszę podać klucz API, aby kontynuować.")
+# Funkcja do ustawienia wybranej postaci
+def set_role(role):
+    st.session_state.conversation_history = [{"role": "system", "content": roles[role]}]
+    st.session_state.current_role = role
+
+# Strona wprowadzania klucza API
+if not st.session_state.api_key:
+    st.title("🔑 Wprowadź klucz API OpenAI")
+    api_key_input = st.text_input("OpenAI API Key", type="password")
+    if st.button("Zatwierdź klucz"):
+        if api_key_input:
+            st.session_state.api_key = api_key_input
+            st.success("Klucz API został zapisany! Możesz rozpocząć rozmowę.")
+        else:
+            st.error("Proszę podać klucz API.")
 else:
     # Inicjalizacja klienta OpenAI
-    client = OpenAI(api_key=api_key)
-
-    # Zdefiniowanie promptów dla postaci
-    roles = {
-        "Lena": "Wcielasz się w rolę tej osoby. Opowiadasz historie, jak minął Ci dzień, oraz wchodzisz w interakcje z użytkownikiem. Jesteś miły, towarzyski i przyjacielski, czasem zabawny: Lena Nowicka, 34 lata, etnografka i fotografka.",
-        "Jakub": "Wcielasz się w rolę tej osoby. Opowiadasz historie, jak minął Ci dzień, oraz wchodzisz w interakcje z użytkownikiem. Jesteś miły, towarzyski i przyjacielski, czasem zabawny: Jakub Wiśniewski, 28 lat, programista.",
-        "Anna": "Wcielasz się w rolę tej osoby. Opowiadasz historie, jak minął Ci dzień, oraz wchodzisz w interakcje z użytkownikiem. Jesteś miły, towarzyski i przyjacielski, czasem zabawny: Anna Kowalska, 42 lata, nauczycielka."
-    }
-
-    # Zainicjalizowanie historii rozmowy w stanie sesji
-    if "conversation_history" not in st.session_state:
-        st.session_state.conversation_history = []
-    if "current_role" not in st.session_state:
-        st.session_state.current_role = None
-
-    # Funkcja do ustawienia wybranej postaci
-    def set_role(role):
-        st.session_state.conversation_history = [{"role": "system", "content": roles[role]}]
-        st.session_state.current_role = role
+    client = OpenAI(api_key=st.session_state.api_key)
 
     # Tytuł aplikacji
     st.title("Good Old Friends")
@@ -43,7 +45,7 @@ else:
         set_role(selected_role)
         st.success(f"Rozpoczęto rozmowę z postacią: {selected_role}")
 
-     # Wyświetlanie historii rozmowy bez wiadomości systemowej
+    # Wyświetlanie historii rozmowy bez wiadomości systemowej
     st.subheader("Historia rozmowy")
     for message in st.session_state.conversation_history:
         # Pomiń wyświetlanie wiadomości systemowej
@@ -70,4 +72,3 @@ else:
 
         # Zapisz odpowiedź do historii rozmowy
         st.session_state.conversation_history.append({"role": "assistant", "content": response})
- 
