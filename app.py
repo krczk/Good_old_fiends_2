@@ -26,7 +26,7 @@ def set_role(role):
 
 # Strona wprowadzania klucza API
 if not st.session_state.api_key:
-    st.title("💬 Dobry znajomy")
+    st.header("💬 Dobry znajomy")
     st.subheader("Zaloguj się i porozmawiajmy")
     api_key_input = st.text_input("Poniżej wprowadź otrzymane hasło", type="password", placeholder="Wpisz hasło...")
     if st.button("Zatwierdź"):
