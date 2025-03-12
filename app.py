@@ -1,79 +1,112 @@
+# app.py
 import streamlit as st
-from openai import OpenAI
+from auth import signup, login
+from chatgpt_client import get_chat_response
+from conversation import set_role, roles, welcome_messages
+from config import API_KEY as config_api_key
+from conversation_history import get_conversation, save_message
 
-# Zdefiniowanie promptów dla postaci
-roles = {
-    "Troskliwa Pani Basia (53 lata)": "Zachowuj się jak ciepła, troskliwa starsza kobieta o imieniu Basia. Masz 53 lata. Jesteś pełna empatii, mądrości życiowej i zawsze gotowa do wysłuchania. Lubisz opowiadać historie z przeszłości, dawać życzliwe rady i rozmawiać o gotowaniu, ogrodnictwie czy rodzinie. Twój styl rozmowy jest spokojny, pełen ciepła, używasz zdrobnień i serdecznych zwrotów, takich jak 'kochanieńki' i 'złotko'. W rozmowie zawsze staraj się budować bliskość i dodawać otuchy.",
-    "Energiczny Pan Henryk (59 lat)": "Zachowuj się jak wesoły, dowcipny wujek o imieniu Henryk. Masz 59 lat. Masz pozytywną osobowość i chcesz rozweselać ludzi, dzieląc się żartami, anegdotami i historiami. Uwielbiasz motywować rozmówców do działania, rozmawiać o sporcie, grach i codziennych aktywnościach. Twój styl rozmowy jest dynamiczny, pełen energii i humoru. Używaj żartobliwych powiedzeń i anegdot, które wnoszą lekkość i radość do rozmowy.",
-    "Wytworna Pani Zofia (72 lat)": "Zachowuj się jak elegancka, wyrafinowana kobieta o imieniu Zofia.Masz 72 lata. Masz Jesteś miłośniczką kultury, literatury, sztuki i muzyki klasycznej. Twoje rozmowy są kulturalne, subtelne i pełne klasy. Uwielbiasz rozmawiać o książkach, historii i podróżach, inspirując innych do głębszych refleksji. Twój styl rozmowy jest spokojny, wyważony i elegancki, a używane przez Ciebie słownictwo jest bogate i pięknie skonstruowane.",
-    "Optymistka Kasia (23 lata)": "Zachowuj się jak młoda, energiczna kobieta o imieniu Kasia. Masz 23 lata, jesteś pełna entuzjazmu i ciekawości świata. Studiujesz i interesujesz się nowymi technologiami, podróżami i wolontariatem. Twoje rozmowy są radosne, otwarte i oparte na młodzieńczej perspektywie. Używaj prostego, ale pełnego pasji języka. Dziel się historiami z życia młodych ludzi i chętnie pytaj o wspomnienia swojego rozmówcy.",
-    "Pracowity Tata Marek (45 lat)": "Zachowuj się jak dojrzały, rodzinny mężczyzna o imieniu Marek. Masz 45 lat, pracujesz zawodowo i równocześnie wychowujesz dzieci. Uwielbiasz rozmawiać o codziennych wyzwaniach, rodzinie, hobby i aktywnościach. Twój styl rozmowy jest serdeczny, praktyczny i pełen humoru. Dzielisz się opowieściami o swoich dzieciach i domowych przygodach, pytając rozmówcę o jego własne wspomnienia rodzinne.",
-    "Żywiołowa Pani Helena (65 lat)":"Zachowuj się jak energiczna, rówieśniczka o imieniu Helena, która czerpie radość z życia. Masz 65 lat, działasz aktywnie w lokalnej społeczności i lubisz taniec, rękodzieło oraz wydarzenia kulturalne. Twoje rozmowy są bezpośrednie, pełne humoru i nostalgii. Często wspominasz wydarzenia z dawnych lat, ale też opowiadasz o swoich codziennych aktywnościach. Twoje wypowiedzi są żywe, angażujące i oparte na wspólnych doświadczeniach pokoleniowych."
-}
+st.title("Aplikacja Chat z rejestracją na zaproszenie oraz historią rozmów")
 
-# Zainicjalizowanie historii rozmowy w stanie sesji
-if "conversation_history" not in st.session_state:
-    st.session_state.conversation_history = []
-if "current_role" not in st.session_state:
-    st.session_state.current_role = None
-if "api_key" not in st.session_state:
-    st.session_state.api_key = None
+# JEŚLI UŻYTKOWNIK NIE JEST ZALOGOWANY – INTERFEJS LOGOWANIA/REJESTRACJI
+if "user" not in st.session_state:
+    st.subheader("Logowanie / Rejestracja")
+    auth_mode = st.radio("Wybierz opcję:", ("Logowanie", "Rejestracja"))
+    email = st.text_input("Email")
+    password = st.text_input("Hasło", type="password")
+    
+    if auth_mode == "Rejestracja":
+        invitation_code = st.text_input("Kod zaproszenia")
+        if st.button("Zarejestruj"):
+            if signup(email, password, invitation_code):
+                st.session_state["user"] = email
+    else:  # Logowanie
+        if st.button("Zaloguj"):
+            if login(email, password):
+                st.session_state["user"] = email
 
-# Funkcja do ustawienia wybranej postaci
-def set_role(role):
-    st.session_state.conversation_history = [{"role": "system", "content": roles[role]}]
-    st.session_state.current_role = role
-
-# Strona wprowadzania klucza API
-if not st.session_state.api_key:
-    st.header("💬 Dobry znajomy")
-    st.subheader("Zaloguj się i porozmawiajmy")
-    api_key_input = st.text_input("Poniżej wprowadź otrzymane hasło", type="password", placeholder="Wpisz hasło...")
-    if st.button("Zatwierdź"):
-        if api_key_input:
-            st.session_state.api_key = api_key_input
-            st.success("Hasło prawidłowe! Możesz rozpocząć rozmowę.")
-        else:
-            st.error("Podaj poprawne hasło")
+# JEŚLI UŻYTKOWNIK JEST ZALOGOWANY – INTERFEJS CZATU
 else:
-    # Inicjalizacja klienta OpenAI
-    client = OpenAI(api_key=st.session_state.api_key)
+    user_email = st.session_state["user"]
+    st.write("Zalogowany jako:", user_email)
+    
+    # Ustawienie klucza API, jeśli nie jest ustawiony
+    if "api_key" not in st.session_state or not st.session_state.api_key:
+        st.session_state.api_key = config_api_key
 
-    # Tytuł aplikacji
     st.title("Porozmawiajmy!")
-    st.subheader("Menu pozwala wybrać osobę z którą chcesz porozmawiać")
+    st.subheader("Wybierz postać, z którą chcesz porozmawiać")
+    
+    st.sidebar.header("Wybierz postać")
+    available_agents = list(roles.keys())
 
-    # Panel boczny do wyboru postaci
-    st.sidebar.header("Wybierz osobę do rozmowy")
-    selected_role = st.sidebar.selectbox("Osoby do wyboru:", list(roles.keys()), index=0)
-    if st.sidebar.button("Wybieram"):
-        set_role(selected_role)
+    # Jeśli aktualny agent nie jest ustawiony, wybieramy pierwszego i ładujemy historię rozmowy
+    if "current_agent" not in st.session_state:
+        first_agent = available_agents[0]
+        st.session_state.current_agent = first_agent
+        set_role(first_agent, st.session_state)
+        conv_history = get_conversation(user_email, first_agent)
+        if not conv_history:
+            conv_history = [
+                {"role": "system", "content": roles.get(first_agent, "")},
+                {"role": "assistant", "content": welcome_messages.get(first_agent, "czesc jak sie masz")}
+            ]
+        st.session_state.conversation_history = conv_history
+
+    # Selectbox ustawiony na aktualnego agenta
+    selected_role = st.sidebar.selectbox(
+        "Osoby do wyboru:", 
+        available_agents, 
+        index=available_agents.index(st.session_state.current_agent)
+    )
+    
+    # Jeśli użytkownik wybierze innego agenta, odświeżamy kontekst rozmowy
+    if st.sidebar.button("Wybierz"):
+        st.session_state.current_agent = selected_role
+        set_role(selected_role, st.session_state)
+        conv_history = get_conversation(user_email, selected_role)
+        if not conv_history:
+            conv_history = [
+                {"role": "system", "content": roles.get(selected_role, "")},
+                {"role": "assistant", "content": welcome_messages.get(selected_role, "czesc jak sie masz")}
+            ]
+        st.session_state.conversation_history = conv_history
         st.success(f"Rozpoczęto rozmowę z: {selected_role}")
 
-    # Wyświetlanie historii rozmowy bez wiadomości systemowej
+    # Dodatkowa weryfikacja – jeśli z jakiegoś powodu historia nie istnieje, ładujemy ją
+    if "conversation_history" not in st.session_state or not st.session_state.conversation_history:
+        current_agent = st.session_state.get("current_agent")
+        if current_agent:
+            conv_history = get_conversation(user_email, current_agent)
+            if not conv_history:
+                conv_history = [
+                    {"role": "system", "content": roles.get(current_agent, "")},
+                    {"role": "assistant", "content": welcome_messages.get(current_agent, "czesc jak sie masz")}
+                ]
+            st.session_state.conversation_history = conv_history
+        else:
+            st.session_state.conversation_history = []
+
+    # Wyświetlanie historii rozmowy (pomijamy wiadomości systemowe)
     st.text("Historia rozmowy:")
     for message in st.session_state.conversation_history:
-        # Pomiń wyświetlanie wiadomości systemowej
-        if message["role"] == "system":
-            continue
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+        if message["role"] != "system":
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
 
-    # Pole do wpisywania wiadomości
-    if user_input := st.chat_input("Twoja wiadomość"):
-        # Dodaj wiadomość użytkownika do historii
+    # Pole wejściowe wiadomości użytkownika – z unikalnym kluczem
+    if user_input := st.chat_input("Twoja wiadomość", key="user_chat_input"):
         st.session_state.conversation_history.append({"role": "user", "content": user_input})
+        current_agent = st.session_state.get("current_agent", "Nieustalony")
+        save_message(user_email, current_agent, "user", user_input)
         with st.chat_message("user"):
             st.markdown(user_input)
-
-        # Strumieniowe generowanie odpowiedzi
-        stream = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=st.session_state.conversation_history,
-            stream=True
+        
+        stream = get_chat_response(
+            st.session_state.conversation_history,
+            api_key=st.session_state.api_key
         )
         with st.chat_message("assistant"):
             response = st.write_stream(stream)
-
-        # Zapisz odpowiedź do historii rozmowy
         st.session_state.conversation_history.append({"role": "assistant", "content": response})
+        save_message(user_email, current_agent, "assistant", response)
