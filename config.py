@@ -6,4 +6,4 @@ import streamlit as st
 
 
 # Pobierz klucz API z zmiennych środowiskowych
-API_KEY = st.secrets["API_KEY"]
+API_KEY = st.secrets["general"]["API_KEY"]
